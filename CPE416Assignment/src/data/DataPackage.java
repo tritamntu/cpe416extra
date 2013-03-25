@@ -3,6 +3,7 @@ package data;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -65,6 +66,7 @@ public class DataPackage implements Serializable {
 		int size = slots.size();
 		ByteBuffer byteBuffer = ByteBuffer.allocate(4 + size * 6 * 4);
 		IntBuffer intBuffer = byteBuffer.asIntBuffer();
+		intBuffer.put(size);
 		for(int i = 0; i < size; i++) {
 			BookingSlot slot = slots.get(i);
 			intBuffer.put(slot.getStartDate());
@@ -81,7 +83,20 @@ public class DataPackage implements Serializable {
 		return str.getBytes(StandardCharsets.US_ASCII);
 	}
 	
+	public static byte[] serialize(String[] strAr) throws UnsupportedEncodingException {
+		String str = "";
+		for(int i = 0; i < strAr.length -1; i++) {
+			str += strAr[i] + "\n";
+		}
+		str += strAr[strAr.length -1];
+		return DataPackage.serialize(str);
+	}
+	
 	// de-serialize methods:
+	public static int extractInt(byte[] buffer, int offset) {
+		return ByteBuffer.wrap(buffer, offset, 4).getInt();
+	}
+	
 	public static TimePoint extractTimePoint(byte[] buffer, int offset) {
 		return new TimePoint(
 				ByteBuffer.wrap(buffer, offset, 4).getInt(), 
@@ -106,5 +121,34 @@ public class DataPackage implements Serializable {
 			slotList.add(slot);
 		}
 		return slotList;
+	}
+	
+	public static String[] extractStringList(byte[] buffer, int offset) {
+		String str = new String(buffer, offset, buffer.length - offset, StandardCharsets.US_ASCII);
+		String [] strAr = str.split("\n");
+		return strAr;
+	}
+	
+	public static void printByteArray(byte [] buffer) {
+		StringBuilder sb = new StringBuilder();
+	    for (byte b : buffer) {
+	        sb.append(String.format("%02X ", b));
+	    }
+	    System.out.println(sb.toString());
+	}
+
+	public static void main(String [] args) {
+		String [] strAr = {"Hello", "World"};
+		try {
+			byte[] buffer = DataPackage.serialize(strAr);
+			DataPackage.printByteArray(buffer);
+			String[] strAr2 = DataPackage.extractStringList(buffer, 0);
+			for(int i = 0; i < strAr2.length; i++) {
+				System.out.println(strAr2[i]);
+			}
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }
