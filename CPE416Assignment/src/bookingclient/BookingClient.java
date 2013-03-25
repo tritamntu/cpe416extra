@@ -50,17 +50,46 @@ public class BookingClient {
 	
 	public static void main(String [] args) {
 		try {
+
 			BookingClient.init();
 			while(true) {
 				
 			}
 			//System.out.println("Client terminates ..");
+
+			//socket = new DatagramSocket(clientPort);
+			//serverAddr = InetAddress.getByName("192.168.0.109");
+			//serverAddr = InetAddress.getByName("127.0.0.1");
+
+			//interfaceControl();
+		
+			
+			
+//			TimePoint tp = new TimePoint(TimePoint.MONDAY, 10, 1);
+//			requestId = 1;
+//			//queryAvailability(1, tp);
+//			int confirmId1 = bookRequest(1, tp, new Duration(0, 1, 0));
+//			requestId++;
+//			tp = new TimePoint(TimePoint.MONDAY, 12, 1);
+//			int confirmId2 = bookRequest(1, tp, new Duration(0, 1, 0));
+//			requestId++;
+//			if(confirmId1 != -1) {
+//				bookChange(1, confirmId1, new Duration(0, 2, 0));
+//			}
+//			
+//			Duration interval = new Duration(1, 2, 0);
+//			BookingClient.monitor(1, interval);
+	
+			//System.out.println("Client terminates ..");
+
+
 		} catch (SocketException | UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}		
 	}
 	
+
 	public static void init() 
 			throws SocketException, UnknownHostException {
 		System.out.println("Init");
@@ -90,19 +119,110 @@ public class BookingClient {
 		System.out.println("5. Exit");
 	}
 	
+	public static void interfaceControl() throws IOException
+	{
+		// The input format complies with the requirement stated in question
+		// 
+		int option;
+		do
+		{
+			System.out.println("\nPlease enter an option from 1 to 5");
+			System.out.println("1. Query availablity of a facility");
+			System.out.println("2. Book a facility");
+			System.out.println("3. Change a booking");
+			System.out.println("4. Monitor the availability of a facility");
+			System.out.println("5. Exit");
+			
+			option= sc.nextInt();
+			sc.nextLine(); // to remove the \n in buffer after nextInt
+			
+			String facilityName;
+			String days;
+			TimePoint startTime, endTime;
+			Duration duration;
+			char AP;
+			int confID;
+			
+			switch(option){
+			
+			case 1: 
+				System.out.print("Enter facility Name: " );
+				facilityName = sc.nextLine().trim();
+				System.out.print("Enter days as in MONDAY TUESDAY: " );
+				days= sc.nextLine().trim().toUpperCase();
+				//queryAvailability();
+				break;
+				
+			case 2:
+				System.out.print("Enter facility Name: " );
+				facilityName = sc.nextLine().trim();
+				System.out.println("Enter start time" );
+				startTime= enterTime();
+				System.out.println("Enter end time" );
+				endTime= enterTime();
+				//bookRequest();
+				break;
+				
+			case 3:
+				System.out.print("Enter facility Name: " );
+				facilityName = sc.nextLine().trim();
+				System.out.print("Enter the confirmation ID: " );
+				confID= Integer.parseInt(sc.nextLine().trim());
+				System.out.print("Enter the Advance or Postpone time [A/P]: " );
+				AP = sc.nextLine().trim().charAt(0);
+				duration= enterDuration();
+				// bookChange();
+				break;
+				
+			case 4: 
+				System.out.print("Enter facility Name: " );
+				facilityName = sc.nextLine().trim();
+				System.out.println("Enter monitor interval" );
+				duration= enterDuration();
+				//monitor(facilityName, duration);
+				break;
+			}// end switch		
+		}while(option!=5);	
+	}
+	
+	public static TimePoint enterTime()
+	{
+		int day, hour, min;
+		System.out.println("1. Monday\n2. Tuesday\n3. Wednesday\n4. Thurday\n5. Friday\n6. Saturday\n7. Sunday");
+		System.out.print("Select a day [1 to 7]: ");
+		day= Integer.parseInt(sc.nextLine().trim())-1;
+		System.out.print("Enter hour [0 to 23]: ");
+		hour=Integer.parseInt(sc.nextLine().trim());
+		System.out.print("Enter mins [0 to 59]: " );
+		min= Integer.parseInt(sc.nextLine().trim());
+		return new TimePoint(day, hour, min);
+	}
+	
+	public static Duration enterDuration()
+	{
+		int day, hour, min;
+		System.out.print("Select number of days [1 to 7]: ");
+		day= Integer.parseInt(sc.nextLine().trim())-1;
+		System.out.print("Enter hour [0 to 23]: ");
+		hour=Integer.parseInt(sc.nextLine().trim());
+		System.out.print("Enter mins [0 to 59]: " );
+		min= Integer.parseInt(sc.nextLine().trim());
+		return new Duration(day,hour,min);
+
+	}
+	
 	// service 1 query Availability
-	public static void queryAvailability(int facilityId, TimePoint tp) throws IOException {
-		System.out.println("Service 1: query Availability");
+	public static int queryAvailability(int facilityId, TimePoint tp) throws IOException {
 		// 1. send request package to server 
-		System.out.println(requestId + ", " + RequestPackage.SERVICE_QUERY + ", " + facilityId + ", 0");
+		window.appendTextLine("Request Service: Query Availability on " + facilityId);
 		RequestPackage queryRequest = new RequestPackage(
 				requestId, RequestPackage.SERVICE_QUERY, facilityId, 0);
 		sendPackage(queryRequest.serialize());
 		// 1.a receive acknowledgment package
 		int statusCode = receiveAckPackage();
 		if(statusCode != StatusCode.ACKNOWLEDGEMENT) {
-			System.out.println("Failed Acknowledgement from server");
-			return ;
+			window.appendTextLine("Failed Acknowledgement from server");
+			return statusCode;
 		} 
 		// 2. send data package to server
 		sendPackage(DataPackage.serialize(tp));
@@ -112,25 +232,28 @@ public class BookingClient {
 		statusCode = DataPackage.extractInt(receiveBuffer, 0);
 		TimePoint nextTime = DataPackage.extractTimePoint(receiveBuffer, 4);
 		if(statusCode == StatusCode.SUCCESS_AVAILABLE) {
-			System.out.println("The Facility is Available.");
-			System.out.println("The next occupied time slot is: " + nextTime.toString());
+			window.appendTextLine("The Facility is Available.");
+			window.appendTextLine("The next occupied time slot is: " + nextTime.toString());
 		} else {
-			System.out.println("The Facility is not Available.");
-			System.out.println("The next available time slot is: " + nextTime.toString());
+			window.appendTextLine("The Facility is not Available.");
+			window.appendTextLine("The next available time slot is: " + nextTime.toString());
 		}
+		window.appendTextLine("End Request .................");
+		window.appendTextLine("");
+		return statusCode;
 	}
 	
 	// service 2 booking request
 	public static int bookRequest(int facilityId, TimePoint startTime, Duration interval) throws IOException {
-		System.out.println("Service 2: book request");
 		// 1. send request package to server
+		window.appendTextLine("Request Service: Book Request on Facility " + facilityId);
 		RequestPackage queryRequest = new RequestPackage(
 				requestId, RequestPackage.SERVICE_BOOK,	facilityId, 0);
 		sendPackage(queryRequest.serialize());
 		// 1.a receive acknowledgment package
 		int statusCode = receiveAckPackage();
 		if(statusCode != StatusCode.ACKNOWLEDGEMENT) {
-			System.out.println("Failed Acknowledgement from server");
+			window.appendTextLine("Failed Acknowedgment From Server");
 			return StatusCode.ACKNOWLEDGEMENT_FAILED;
 		} 
 		// 2. send data package to server
@@ -141,25 +264,28 @@ public class BookingClient {
 		statusCode = DataPackage.extractInt(receiveBuffer, 0);
 		int confirmId = DataPackage.extractInt(receiveBuffer, 4);
 		if(statusCode == StatusCode.SUCCESS_BOOKING) {
-			System.out.println("Booking was successful, ConfirmationID = " + confirmId);
+			window.appendTextLine("Booking was successful, ConfirmationID = " + confirmId);
 		} else {
-			System.out.println("Booking was failed due to time violation with other booking slots!");
+			window.appendTextLine("Booking was failed due to time violation with other booking slots!");
 		}
+		window.appendTextLine("End Request .................");
+		window.appendTextLine("");
 		return confirmId;
 	}
 	
 	// service 3 booking change 
-	public static void bookChange(int facilityId, int confirmationId, Duration interval) throws IOException {
-		System.out.println("Service 3: booking change");
+	public static int bookChange(int facilityId, int confirmationId, Duration interval) throws IOException {
 		// 1. send request package to server
-		RequestPackage queryRequest = new RequestPackage(
+		window.appendTextLine("Request Service: Book Change on Facility " 
+				+ facilityId + ", ConfirmationId-" + confirmationId);
+		RequestPackage queryRequest = new RequestPackage( 
 				requestId, RequestPackage.SERVICE_CHANGE, facilityId, confirmationId);
 		sendPackage(queryRequest.serialize());
 		// 1.a receive acknowledgment package
 		int statusCode = receiveAckPackage();
 		if(statusCode != StatusCode.ACKNOWLEDGEMENT) {
-			System.out.println("Failed Acknowledgement from server");
-			return;
+			window.appendTextLine("Failed Acknowledgement from server");
+			return statusCode;
 		} 
 		// 2. send data package to server
 		sendPackage(DataPackage.serialize(interval));
@@ -169,10 +295,13 @@ public class BookingClient {
 		statusCode = DataPackage.extractInt(receiveBuffer, 0);
 		int confirmId = DataPackage.extractInt(receiveBuffer, 4);
 		if(statusCode == StatusCode.SUCCESS_BOOKING_CHANGE) {
-			System.out.println("Booking change was successful, new ConfirmationID = " + confirmId);
+			window.appendTextLine("Booking change was successful, new ConfirmationID = " + confirmId);
 		} else {
-			System.out.println("Booking change was failed due to time violation with other booking slots!");
+			window.appendTextLine("Booking change was failed due to time violation with other booking slots!");
 		}
+		window.appendTextLine("End Request .................");
+		window.appendTextLine("");
+		return statusCode;
 	}
 	
 	public static void monitor(int facilityId, Duration interval) throws IOException {
@@ -215,9 +344,6 @@ public class BookingClient {
 	public static int queryFacilityName() throws IOException {
 		int statusCode = StatusCode.FACILITY_NOT_FOUND;
 		// 1. send request package
-		if(window == null) {
-			System.out.println("window == null");
-		}
 		window.appendTextLine("Request Service: Query List of Facility");
 		RequestPackage rq = new RequestPackage(requestId, RequestPackage.SERVICE_SPEC, 0 , 0);
 		sendPackage(rq.serialize());
@@ -237,7 +363,7 @@ public class BookingClient {
 				window.appendTextLine((i+1) + ": " + facilityName[i]);
 			}
 		}
-		window.appendTextLine("EndRequest .........");
+		window.appendTextLine("End Request .................");
 		window.appendTextLine("");
 		return statusCode;
 	}
@@ -259,5 +385,22 @@ public class BookingClient {
 		receiveBuffer = receivePacket.getData();
 		return ByteBuffer.wrap(receiveBuffer, 0, 4).getInt();
 	}
+	
+	public static int getDayIndex(String day) {
+		for(int i = 0; i < BookingClient.dayList.length; i++) {
+			if(day.equalsIgnoreCase(BookingClient.dayList[i]))
+				return i;
+		}
+		return -1;
+	}
+	
+	public static int getFacilityIndex(String f) {
+		for(int i = 0; i < BookingClient.facilityName.length; i++) {
+			if(f.equalsIgnoreCase(BookingClient.facilityName[i]))
+				return i;
+		}
+		return -1;
+	}
+	
 	
 }
